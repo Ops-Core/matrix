@@ -1,311 +1,250 @@
-# ml-matrix
+# matrix-ops-core
 
-Matrix manipulation and computation library.
+Dense linear algebra for JavaScript and TypeScript. Create matrices, run element-wise and matrix products, factorize, invert, and solve linear systems — all in one package.
 
-<h3 align="center">
+Works in Node.js and the browser (ESM, CommonJS, and UMD).
 
-  <a href="https://www.zakodium.com">
-    <img src="https://www.zakodium.com/brand/zakodium-logo-white.svg" width="50" alt="Zakodium logo" />
-  </a>
-
-  <p>
-    Maintained by <a href="https://www.zakodium.com">Zakodium</a>
-  </p>
-
-[![NPM version][npm-image]][npm-url]
-[![build status][ci-image]][ci-url]
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5644534.svg)](https://doi.org/10.5281/zenodo.5644534)
-[![npm download][download-image]][download-url]
-
-</h3>
-
-## Installation
-
-`$ npm install ml-matrix`
-
-## Usage
-
-### As an ES module
-
-```js
-import { Matrix } from 'ml-matrix';
-
-const matrix = Matrix.ones(5, 5);
+```bash
+npm install matrix-ops-core
 ```
 
-### As a CommonJS module
-
 ```js
-const { Matrix } = require('ml-matrix');
+import { Matrix, SVD, inverse, solve } from 'matrix-ops-core';
 
-const matrix = Matrix.ones(5, 5);
-```
-
-## [API Documentation](https://mljs.github.io/matrix/)
-
-## Examples
-
-### Standard operations
-
-```js
-const { Matrix } = require('ml-matrix');
-
-var A = new Matrix([
-  [1, 1],
-  [2, 2],
+const X = new Matrix([
+  [4, 1, 2],
+  [1, 5, 0],
+  [2, 0, 3],
 ]);
 
-var B = new Matrix([
-  [3, 3],
-  [1, 1],
+X.mmul(inverse(X)); // ≈ I
+```
+
+Repository: [github.com/Ops-Core/matrix](https://github.com/Ops-Core/matrix)
+
+---
+
+## What you get
+
+| Area | Highlights |
+| --- | --- |
+| Construction | `new Matrix(...)`, `zeros`, `ones`, `eye`, `diag`, `rand`, row/column vectors |
+| Arithmetic | `add` / `sub` / `mul` / `div` / `mod`, `mmul`, `mpow`, Kronecker product |
+| Shape | transpose, concat, views, wrap existing typed arrays without copying |
+| Stats | mean, variance, norm, covariance, correlation, `applyAlongAxis` |
+| Factorization | LU, QR, SVD, EVD, Cholesky, NIPALS |
+| Solvers | `solve`, `inverse`, `pseudoInverse`, `determinant` |
+| Special types | `SymmetricMatrix`, `DistanceMatrix` |
+
+Type definitions ship with the package (`matrix.d.ts`).
+
+---
+
+## Quick start
+
+ESM:
+
+```js
+import { Matrix } from 'matrix-ops-core';
+
+const A = Matrix.eye(3);
+const b = Matrix.columnVector([1, 2, 3]);
+```
+
+CommonJS:
+
+```js
+const { Matrix } = require('matrix-ops-core');
+```
+
+Browser (UMD, via unpkg / jsDelivr): `matrix.umd.js`.
+
+---
+
+## Building matrices
+
+```js
+import { Matrix } from 'matrix-ops-core';
+
+const fromRows = new Matrix([
+  [2, 0, -1],
+  [0, 3, 4],
 ]);
 
-var C = new Matrix([
-  [3, 3],
-  [1, 1],
-]);
+const empty = Matrix.zeros(4, 4);
+const identity = Matrix.eye(4);
+const diagonal = Matrix.diag([3, 5, 7]);
+const noise = Matrix.rand(8, 8, { random: Math.random });
+
+fromRows.rows;    // 2
+fromRows.columns; // 3
+fromRows.get(1, 2); // 4
+fromRows.set(0, 1, 9);
 ```
 
-#### Operations
+`wrap()` puts a matrix interface over an existing 1D or 2D array so you can reuse buffers:
+
 ```js
-const addition       = Matrix.add(A, B);   // addition       = Matrix [[4, 4], [3, 3], rows: 2, columns: 2]
-const subtraction    = Matrix.sub(A, B);   // subtraction    = Matrix [[-2, -2], [1, 1], rows: 2, columns: 2]
-const multiplication = A.mmul(B);          // multiplication = Matrix [[4, 4], [8, 8], rows: 2, columns: 2]
-const mulByNumber    = Matrix.mul(A, 10);  // mulByNumber    = Matrix [[10, 10], [20, 20], rows: 2, columns: 2]
-const divByNumber    = Matrix.div(A, 10);  // divByNumber    = Matrix [[0.1, 0.1], [0.2, 0.2], rows: 2, columns: 2]
-const modulo         = Matrix.mod(B, 2);   // modulo         = Matrix [[1, 1], [1, 1], rows: 2, columns: 2]
-const maxMatrix      = Matrix.max(A, B);   // max            = Matrix [[3, 3], [2, 2], rows: 2, columns: 2]
-const minMatrix      = Matrix.min(A, B);   // max            = Matrix [[1, 1], [1, 1], rows: 2, columns: 2]
+import { wrap } from 'matrix-ops-core';
+
+const buffer = Float64Array.from([1, 2, 3, 4, 5, 6]);
+const view = wrap(buffer, { rows: 2 });
+view.set(0, 0, 10); // writes through to `buffer`
 ```
 
-#### Inplace Operations
+---
+
+## Arithmetic
+
+Static methods return a new matrix. Instance methods mutate in place.
+
 ```js
-C.add(A);   // => C = C + A
-C.sub(A);   // => C = C - A
-C.mul(10);  // => C = 10 * C
-C.div(10);  // => C = C / 10
-C.mod(2);   // => C = C % 2
-```
+import { Matrix } from 'matrix-ops-core';
 
-#### Math Operations
-```js
-// Standard Math operations: (abs, cos, round, etc.)
-var A = new Matrix([
-  [ 1,  1],
-  [-1, -1],
-]);
-
-var exponential = Matrix.exp(A);  // exponential = Matrix [[Math.exp(1), Math.exp(1)], [Math.exp(-1), Math.exp(-1)], rows: 2, columns: 2].
-var cosinus     = Matrix.cos(A);  // cosinus     = Matrix [[Math.cos(1), Math.cos(1)], [Math.cos(-1), Math.cos(-1)], rows: 2, columns: 2].
-var absolute    = Matrix.abs(A);  // absolute    = Matrix [[1, 1], [1, 1], rows: 2, columns: 2].
-// Note: you can do it inplace too as A.abs()
-```
-Available Methods:
-```js
-abs, acos, acosh, asin, asinh, atan, atanh, cbrt, ceil, clz32, cos, cosh, exp, expm1, floor, fround, log, log1p, log10, log2, round, sign, sin, sinh, sqrt, tan, tanh, trunc
-```
-#### Manipulation of the matrix
-```js
-// remember: A = Matrix [[1, 1], [-1, -1], rows: 2, columns: 2]
-
-var numberRows     = A.rows;             // A has 2 rows
-var numberCols     = A.columns;          // A has 2 columns
-var firstValue     = A.get(0, 0);        // get(rows, columns)
-var numberElements = A.size;             // 2 * 2 = 4 elements
-var isRow          = A.isRowVector();    // false because A has more than 1 row
-var isColumn       = A.isColumnVector(); // false because A has more than 1 column
-var isSquare       = A.isSquare();       // true, because A is 2 * 2 matrix
-var isSym          = A.isSymmetric();    // false, because A is not symmetric
-A.set(1, 0, 10);                         // A = Matrix [[1, 1], [10, -1], rows: 2, columns: 2]. We have changed the second row and the first column
-var diag           = A.diag();           // diag = [1, -1] (values in the diagonal)
-var m              = A.mean();           // m = 2.75
-var product        = A.prod();           // product = -10 (product of all values of the matrix)
-var norm           = A.norm();           // norm = 10.14889156509222 (Frobenius norm of the matrix)
-var transpose      = A.transpose();      // transpose = Matrix [[1, 10], [1, -1], rows: 2, columns: 2]
-```
-
-#### Row and column wise reductions
-```js
-var M = new Matrix([
-  [1, 2, 3],
-  [4, 5, 6],
-]);
-
-var sumOf = (vector) => vector.reduce((total, value) => total + value, 0);
-
-var rowSums    = M.applyAlongAxis(sumOf, 'row');    // rowSums    = [6, 15]
-var columnSums = M.applyAlongAxis(sumOf, 'column'); // columnSums = [5, 7, 9]
-```
-The callback receives each row or column as a plain array along with its index, so any reduction can be expressed with it.
-
-#### Instantiation of matrix
-```js
-var z = Matrix.zeros(3, 2); // z = Matrix [[0, 0], [0, 0], [0, 0], rows: 3, columns: 2]
-var z = Matrix.ones(2, 3);  // z = Matrix [[1, 1, 1], [1, 1, 1], rows: 2, columns: 3]
-var z = Matrix.eye(3, 4);   // z = Matrix [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], rows: 3, columns: 4]. there are 1 only in the diagonal
-```
-
-#### Concatenation of matrices
-```js
-var M = new Matrix([
+const P = new Matrix([
   [1, 2],
   [3, 4],
 ]);
+const Q = new Matrix([
+  [0, 5],
+  [6, 7],
+]);
 
-var stacked = M.concat([[5, 6]]);                              // stacked = Matrix [[1, 2], [3, 4], [5, 6], rows: 3, columns: 2]
-var widened = M.concat(Matrix.columnVector([5, 6]), 'column'); // widened = Matrix [[1, 2, 5], [3, 4, 6], rows: 2, columns: 3]
+Matrix.add(P, Q);  // new matrix
+P.add(Q);          // P is updated
+
+P.mmul(Q);         // matrix product
+P.mul(0.5);        // scale
+P.mpow(3);         // P³ via exponentiation by squaring
 ```
-Concatenating by row needs the same number of columns on both sides, concatenating by column needs the same number of rows. The two operands are left untouched.
 
-### Maths
+Element-wise math follows `Math.*` names: `abs`, `exp`, `log`, `sqrt`, `sin`, `cos`, and the rest of the standard set. Call them statically (`Matrix.exp(P)`) or in place (`P.exp()`).
+
+Reductions and geometry:
+
 ```js
-const {
+P.mean();
+P.norm();          // Frobenius
+P.transpose();
+P.diag();
+P.concat(Q, 'column');
+P.applyAlongAxis((col) => col.reduce((s, v) => s + v, 0), 'column');
+```
+
+---
+
+## Linear systems
+
+```js
+import { Matrix, inverse, solve, pseudoInverse, determinant } from 'matrix-ops-core';
+
+const A = new Matrix([
+  [3, 1, 0],
+  [1, 4, 1],
+  [0, 1, 2],
+]);
+const b = Matrix.columnVector([5, 6, 3]);
+
+const x = solve(A, b);
+const Ainv = inverse(A);
+determinant(A);
+
+// Rank-deficient / rectangular: SVD-based inverse
+const tall = new Matrix([
+  [1, 0],
+  [1, 1],
+  [0, 1],
+]);
+inverse(tall, true);
+tall.pseudoInverse();
+```
+
+`solve` uses LU when the left-hand side is square and QR otherwise. Pass `true` as the third argument to force SVD (useful when the system is singular).
+
+---
+
+## Factorizations
+
+```js
+import {
   Matrix,
-  inverse,
-  solve,
-  linearDependencies,
-  QrDecomposition,
-  LuDecomposition,
-  CholeskyDecomposition,
-  EigenvalueDecomposition,
-} = require('ml-matrix');
-```
-#### Inverse and Pseudo-inverse
-```js
-var A = new Matrix([
-  [2, 3, 5],
-  [4, 1, 6],
-  [1, 3, 0],
+  LU,
+  QR,
+  SVD,
+  EVD,
+  CHO,
+  NIPALS,
+} from 'matrix-ops-core';
+
+const M = new Matrix([
+  [6, 2, 1],
+  [2, 5, 2],
+  [1, 2, 4],
 ]);
 
-var inverseA = inverse(A);
-var B = A.mmul(inverseA); // B = A * inverse(A), so B ~= Identity
+const { lowerTriangularMatrix: L, upperTriangularMatrix: U } = new LU(M);
+const { orthogonalMatrix: Q, upperTriangularMatrix: R } = new QR(M);
 
+const svd = new SVD(M);
+svd.diagonal;      // singular values
+svd.leftSingularVectors;
+svd.rightSingularVectors;
 
-// if A is singular, you can use SVD :
-var A = new Matrix([
-  [1, 2, 3],
-  [4, 5, 6],
-  [7, 8, 9],
-]); 
-// A is singular, so the standard computation of inverse won't work (you can test if you don't trust me^^)
+const evd = new EVD(M);
+evd.realEigenvalues;
+evd.eigenvectorMatrix;
 
-var inverseA = inverse(A, (useSVD = true)); // inverseA is only an approximation of the inverse, by using the Singular Values Decomposition
-var B = A.mmul(inverseA); // B = A * inverse(A), but inverse(A) is only an approximation, so B doesn't really be identity.
+new CHO(M).lowerTriangularMatrix;
+
+const nipals = new NIPALS(M);
+nipals.t; // scores
+nipals.p; // loadings
 ```
+
+Full class names (`LuDecomposition`, `QrDecomposition`, `SingularValueDecomposition`, …) are exported alongside the short aliases.
+
+---
+
+## Symmetric and distance matrices
+
 ```js
-// if you want the pseudo-inverse of a matrix :
-var A = new Matrix([
-  [1, 2],
-  [3, 4],
-  [5, 6],
+import { SymmetricMatrix, DistanceMatrix } from 'matrix-ops-core';
+
+const S = SymmetricMatrix.ones(4);
+S.set(0, 3, 2); // also sets (3, 0)
+
+const D = DistanceMatrix.fromCompact([1.2, 0.8, 3.1]);
+```
+
+---
+
+## Stats helpers
+
+```js
+import { Matrix, covariance, correlation } from 'matrix-ops-core';
+
+const samples = new Matrix([
+  [1.0, 2.1, 0.4],
+  [1.2, 1.9, 0.5],
+  [0.8, 2.4, 0.3],
+  [1.1, 2.0, 0.6],
 ]);
 
-var pseudoInverseA = A.pseudoInverse();
-var B = A.mmul(pseudoInverseA).mmul(A); // with pseudo inverse, A*pseudo-inverse(A)*A ~= A. It's the case here
+covariance(samples);
+correlation(samples);
 ```
-#### Least square
-Least square is the following problem: We search for `x`, such that `A.x = B` (`A`, `x` and `B` are matrix or vectors).
-Below, how to solve least square with our function
-```js
-// If A is non singular :
-var A = new Matrix([
-  [3,    1],
-  [4.25, 1],
-  [5.5,  1],
-  [8,    1],
-]);
 
-var B = Matrix.columnVector([4.5, 4.25, 5.5, 5.5]);
-var x = solve(A, B);
-var error = Matrix.sub(B, A.mmul(x)); // The error enables to evaluate the solution x found.
+---
+
+## Scripts
+
+```bash
+npm test          # unit tests, eslint, prettier
+npm run compile   # rollup bundles
 ```
-```js
-// If A is non singular :
-var A = new Matrix([
-  [1, 2, 3],
-  [4, 5, 6],
-  [7, 8, 9],
-]);
 
-var B = Matrix.columnVector([8, 20, 32]);
-var x = solve(A, B, (useSVD = true)); // there are many solutions. x can be [1, 2, 1].transpose(), or [1.33, 1.33, 1.33].transpose(), etc.
-var error = Matrix.sub(B, A.mmul(x)); // The error enables to evaluate the solution x found.
-```
-#### Decompositions
-
-##### QR Decomposition
-```js
-var A = new Matrix([
-  [2, 3, 5],
-  [4, 1, 6],
-  [1, 3, 0],
-]);
-
-var QR = new QrDecomposition(A);
-var Q = QR.orthogonalMatrix;
-var R = QR.upperTriangularMatrix;
-// So you have the QR decomposition. If you multiply Q by R, you'll see that A = Q.R, with Q orthogonal and R upper triangular
-```
-##### LU Decomposition
-```js
-var A = new Matrix([
-  [2, 3, 5],
-  [4, 1, 6],
-  [1, 3, 0],
-]);
-
-var LU = new LuDecomposition(A);
-var L = LU.lowerTriangularMatrix;
-var U = LU.upperTriangularMatrix;
-var P = LU.pivotPermutationVector;
-// So you have the LU decomposition. P includes the permutation of the matrix. Here P = [1, 2, 0], i.e the first row of LU is the second row of A, the second row of LU is the third row of A and the third row of LU is the first row of A.
-```
-##### Cholesky Decomposition
-```js
-var A = new Matrix([
-  [2, 3, 5],
-  [4, 1, 6],
-  [1, 3, 0],
-]);
-
-var cholesky = new CholeskyDecomposition(A);
-var L = cholesky.lowerTriangularMatrix;
-```
-##### Eigenvalues & eigenvectors
-```js
-var A = new Matrix([
-  [2, 3, 5],
-  [4, 1, 6],
-  [1, 3, 0],
-]);
-
-var e = new EigenvalueDecomposition(A);
-var real = e.realEigenvalues;
-var imaginary = e.imaginaryEigenvalues;
-var vectors = e.eigenvectorMatrix;
-```
-#### Linear dependencies
-```js
-var A = new Matrix([
-  [2, 0, 0, 1],
-  [0, 1, 6, 0],
-  [0, 3, 0, 1],
-  [0, 0, 1, 0],
-  [0, 1, 2, 0],
-]);
-
-var dependencies = linearDependencies(A);
-// dependencies is a matrix with the dependencies of the rows. When we look row by row, we see that the first row is [0, 0, 0, 0, 0], so it means that the first row is independent, and the second row is [ 0, 0, 0, 4, 1 ], i.e the second row = 4 times the 4th row + the 5th row.
-```
+---
 
 ## License
 
-[MIT](./LICENSE)
-
-[npm-image]: https://img.shields.io/npm/v/ml-matrix.svg
-[npm-url]: https://npmjs.org/package/ml-matrix
-[ci-image]: https://github.com/mljs/matrix/workflows/Node.js%20CI/badge.svg?branch=main
-[ci-url]: https://github.com/mljs/matrix/actions?query=workflow%3A%22Node.js+CI%22
-[download-image]: https://img.shields.io/npm/dm/ml-matrix.svg
-[download-url]: https://npmjs.org/package/ml-matrix
+[MIT](./LICENSE) — jamesmorse82
